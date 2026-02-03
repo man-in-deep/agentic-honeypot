@@ -1,0 +1,11 @@
+# Python dependencies for Agentic Honey-Pot
+Flask
+flask-cors
+python-dotenv
+requests
+python-firebase
+torch
+numpy==2.4.0
+urlextract
+phonenumbers
+gunicorn
