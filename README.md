@@ -12,7 +12,17 @@ An AI-powered system that detects scam messages and extracts intelligence throug
 - Render deployment ready
 
 ## 📁 Project Structure
-
+agentic-honeypot/
+├── app.py # Main Flask API
+├── model_downloader.py # Downloads Hugging Face model
+├── model_predictor.py # Scam detection
+├── intelligence_extractor.py # Extracts intelligence
+├── firebase_manager.py # Firebase session storage
+├── guvi_callback.py # GUVI callback (MANDATORY)
+├── setup_env.py # Auto-generates .env
+├── test_local.py # Test localhost
+├── requirements.txt # Dependencies
+└── render.yaml # Render deployment
 
 ## 🔧 Quick Start
 1. `pip install -r requirements.txt`
