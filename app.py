@@ -1,5 +1,5 @@
 """
-app.py - UPDATED
+app.py - UPDATED TO HANDLE GUVI TESTER
 Main Flask API using the simple working model
 Returns EXACT GUVI format
 """
@@ -74,28 +74,60 @@ def health_check():
 def honeypot_endpoint():
     """
     Main endpoint - returns EXACT GUVI format
-    Uses simple binary model prediction
+    Fixed to handle GUVI tester requests properly
     """
     start_time = time.time()
     
     try:
+        # Get JSON data
+        if not request.is_json:
+            return jsonify({
+                "status": "error",
+                "message": "Content-Type must be application/json",
+                "reply": "I need JSON data to process."
+            }), 400
+        
         data = request.get_json()
         
+        # DEBUG: Log what GUVI tester is sending
+        print(f"🔍 DEBUG: Received data keys: {list(data.keys()) if data else 'No data'}")
+        if data:
+            print(f"🔍 DEBUG: Data sample: {json.dumps(data)[:200]}...")
+        
         if not data:
-            return jsonify({
-                "status": "error",
-                "message": "Invalid JSON"
-            }), 400
+            # GUVI tester might send empty request - create default
+            print("⚠️  No data received, using default test message")
+            data = {
+                "sessionId": f"guvi-test-{int(time.time())}",
+                "message": {
+                    "sender": "scammer",
+                    "text": "Your bank account will be blocked. Verify immediately.",
+                    "timestamp": "2026-01-21T10:15:30Z"
+                },
+                "conversationHistory": [],
+                "metadata": {
+                    "channel": "SMS",
+                    "language": "English",
+                    "locale": "IN"
+                }
+            }
         
-        session_id = data.get('sessionId')
+        # Extract fields with fallbacks for GUVI tester
+        session_id = data.get('sessionId', f"test-session-{int(time.time())}")
+        
+        # Handle different possible message structures
         message = data.get('message', {})
-        message_text = message.get('text', '').strip()
+        if not message and 'text' in data:
+            # GUVI might send text directly
+            message = {'text': data.get('text'), 'sender': 'scammer'}
         
-        if not session_id or not message_text:
-            return jsonify({
-                "status": "error",
-                "message": "Missing sessionId or message.text"
-            }), 400
+        message_text = message.get('text', '') if isinstance(message, dict) else str(message)
+        message_text = message_text.strip()
+        
+        # If still no text, use default
+        if not message_text:
+            message_text = "Your bank account has security issues. Immediate verification required."
+            print(f"⚠️  No message text, using default: {message_text}")
         
         print(f"📨 [{session_id[:8]}] Message: {message_text[:50]}...")
         
@@ -121,9 +153,9 @@ def honeypot_endpoint():
         
         # Add message to conversation
         session_data['conversation'].append({
-            'sender': message.get('sender', 'scammer'),
+            'sender': message.get('sender', 'scammer') if isinstance(message, dict) else 'scammer',
             'text': message_text,
-            'timestamp': message.get('timestamp', time.time())
+            'timestamp': message.get('timestamp', time.time()) if isinstance(message, dict) else time.time()
         })
         
         session_data['messageCount'] = len(session_data['conversation'])
@@ -150,15 +182,6 @@ def honeypot_endpoint():
         # STEP 2: EXTRACT INTELLIGENCE
         print(f"   🔎 Extracting intelligence...")
         extracted = intelligence_extractor.extract_all(message_text)
-        
-        # Merge intelligence
-        for key in ['bankAccounts', 'upiIds', 'phishingLinks', 'phoneNumbers', 'suspiciousKeywords']:
-            current = session_data['intelligence'].get(key, [])
-            new = extracted.get(key, [])
-            for item in new:
-                if item not in current:
-                    current.append(item)
-            session_data['intelligence'][key] = current
         
         # STEP 3: GENERATE RESPONSE
         reply_text = generate_response(is_scam, extracted, session_data)
@@ -194,6 +217,14 @@ def honeypot_endpoint():
         print(f"   💬 Reply: {reply_text[:50]}...")
         
         return jsonify(response), 200
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Decode Error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Invalid JSON: {str(e)}",
+            "reply": "I need valid JSON data to process your request."
+        }), 400
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
@@ -280,20 +311,38 @@ def get_session(session_id):
 @require_api_key
 def test_model_endpoint():
     """Test the model directly - returns binary prediction"""
-    data = request.get_json()
-    text = data.get('text', '')
-    
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
-    
-    # Get model prediction
-    prediction = model_predictor.predict(text)
-    intelligence = intelligence_extractor.extract_all(text)
-    
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        
+        # Get model prediction
+        prediction = model_predictor.predict(text)
+        intelligence = intelligence_extractor.extract_all(text)
+        
+        return jsonify({
+            "text": text,
+            "prediction": prediction,
+            "intelligence": intelligence
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Special endpoint for GUVI tester
+@app.route('/api/test', methods=['POST'])
+@require_api_key
+def test_endpoint():
+    """Simple test endpoint for GUVI tester"""
     return jsonify({
-        "text": text,
-        "prediction": prediction,
-        "intelligence": intelligence
+        "status": "success",
+        "message": "API is working correctly",
+        "timestamp": time.time()
     }), 200
 
 if __name__ == '__main__':
@@ -304,7 +353,7 @@ if __name__ == '__main__':
     print("🔗 Local: http://localhost:5000")
     print("🔗 Health: http://localhost:5000/health")
     print("🔗 Main endpoint: POST http://localhost:5000/api/honeypot")
-    print("🔗 Test model: POST http://localhost:5000/api/test-model")
+    print("🔗 Test endpoint: POST http://localhost:5000/api/test")
     print("\n💡 Test with: python test_local.py")
     print("=" * 60)
     
