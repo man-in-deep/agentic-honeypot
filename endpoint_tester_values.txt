@@ -1,0 +1,27 @@
+===========================================
+GUVI ENDPOINT TESTER VALUES
+===========================================
+
+Copy and paste these EXACT values into the
+GUVI Endpoint Tester on their website:
+
+x-api-key: a3da6ac1825ebe8a1dce3520e36657d2
+
+URL: https://agentic-honeypot-0p4k.onrender.com/api/honeypot
+
+===========================================
+IMPORTANT NOTES:
+1. URL MUST include /api/honeypot
+2. API Key is case-sensitive
+3. Click "Test Endpoint" after entering
+4. Wait 30-60 seconds (Render free tier is slow)
+5. Should show: ✅ Success
+
+===========================================
+TEST RESULTS EXPECTED:
+✅ Connection successful
+✅ API Key authentication successful
+✅ Response received in X.XX seconds
+✅ Format matches requirements
+✅ Ready for evaluation
+===========================================

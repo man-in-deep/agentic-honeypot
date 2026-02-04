@@ -1,0 +1,30 @@
+===========================================
+GUVI SUBMISSION FORM VALUES
+===========================================
+
+Based on YOUR submission rules:
+"Participants must submit one public API endpoint URL"
+
+Therefore submit these EXACT values:
+
+FIELD 1: API Endpoint URL
+https://agentic-honeypot-0p4k.onrender.com/api/honeypot
+
+FIELD 2: API KEY
+a3da6ac1825ebe8a1dce3520e36657d2
+
+===========================================
+IMPORTANT:
+1. Submit the FULL endpoint URL (with /api/honeypot)
+2. Because rules say "API endpoint URL" not "Deployed URL"
+3. Copy EXACTLY as shown above
+4. Submit only once
+5. Save confirmation email/screenshot
+
+===========================================
+YOUR DEPLOYMENT DETAILS:
+Base URL: https://agentic-honeypot-0p4k.onrender.com
+Full Endpoint: https://agentic-honeypot-0p4k.onrender.com/api/honeypot
+API Key: a3da6ac1825ebe8a1dce3520e36657d2
+Health Check: https://agentic-honeypot-0p4k.onrender.com/health
+===========================================
