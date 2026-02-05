@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 setup_env.py
-Auto-generates .env file with PythonAnywhere compatible keys
+Auto-generates .env file with all required keys
 """
 
 import os
@@ -9,39 +9,49 @@ import secrets
 import json
 from datetime import datetime
 
-def create_env_file():
-    """Create .env file for PythonAnywhere"""
+def create_environment_file():
+    """Create .env file with all configuration"""
     
     print("=" * 60)
-    print("⚙️  SETUP ENVIRONMENT FOR PYTHONANYWHERE")
+    print("⚙️  SETTING UP ENVIRONMENT")
     print("=" * 60)
     
-    # Generate API Key
+    # Step 1: Generate API Key
     api_key = secrets.token_urlsafe(32)
+    print(f"🔑 Generated API Key: {api_key}")
+    print(f"   (First 15 chars): {api_key[:15]}...")
     
-    # Check model
+    # Step 2: Check model directory exists
     model_path = "models/downloaded_model"
     if not os.path.exists(model_path):
-        print("⚠️  Model not downloaded. Run: python model_downloader.py")
-        return False
+        os.makedirs(model_path, exist_ok=True)
+        print(f"📁 Created model directory: {model_path}")
     
-    # Check Firebase
+    # Step 3: Firebase setup
     firebase_config = {}
     if os.path.exists('firebase-credentials.json'):
         try:
             with open('firebase-credentials.json', 'r') as f:
                 firebase_config = json.load(f)
-            print("✅ Firebase credentials found")
+            project_id = firebase_config.get('project_id', 'NOT_FOUND')
+            print(f"🔥 Firebase project found: {project_id}")
         except:
             print("⚠️  Could not read firebase-credentials.json")
     else:
         print("📝 Firebase credentials not found")
-        print("   Get from: Firebase Console → Service Accounts")
-        print("   Save as: firebase-credentials.json")
+        print("   Get from: Firebase Console → Project Settings → Service Accounts")
+        print("   Save as: firebase-credentials.json in project root")
     
-    # Create .env
-    env_content = f"""# AGENTIC HONEY-POT - PythonAnywhere Configuration
+    # Get Firebase URL if available
+    firebase_url = ""
+    if firebase_config.get('project_id'):
+        project_id = firebase_config['project_id']
+        firebase_url = f"https://{project_id}.firebaseio.com/"
+    
+    # Step 4: Create .env content
+    env_content = f"""# AGENTIC HONEY-POT - Environment Configuration
 # Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+# DO NOT COMMIT THIS FILE TO GIT
 
 # API Configuration
 API_KEY={api_key}
@@ -50,49 +60,55 @@ DEBUG=false
 ENVIRONMENT=production
 
 # Model Configuration
-MODEL_PATH=models/downloaded_model
-SCAM_THRESHOLD=0.5
+MODEL_PATH={model_path}
+SCAM_THRESHOLD=0.5  # Binary threshold
+MAX_SEQUENCE_LENGTH=128
 
 # Firebase Configuration
-FIREBASE_DATABASE_URL=https://YOUR_PROJECT.firebaseio.com/
+FIREBASE_DATABASE_URL={firebase_url if firebase_url else 'https://YOUR_PROJECT.firebaseio.com/'}
 FIREBASE_CREDENTIALS_FILE=firebase-credentials.json
 
-# GUVI Configuration
+# GUVI Configuration (MANDATORY FOR HACKATHON)
 GUVI_CALLBACK_URL=https://hackathon.guvi.in/api/updateHoneyPotFinalResult
 GUVI_TIMEOUT=10
 
-# Conversation Settings
-MAX_CONVERSATION_TURNS=10
-MIN_ENGAGEMENT_TURNS=2
+# Session Settings
+MAX_CONVERSATION_TURNS=20
+MIN_ENGAGEMENT_TURNS=3
+SESSION_TIMEOUT_SECONDS=3600
 
-# Logging
+# Application Settings
 LOG_LEVEL=INFO
+REQUEST_TIMEOUT=30
+ALLOW_ORIGINS=*
 """
     
+    # Write .env file
     with open('.env', 'w') as f:
         f.write(env_content)
     
-    print(f"\n✅ .env file created!")
-    print(f"🔑 API Key: {api_key}")
+    print(f"\n✅ .env file created successfully!")
     print(f"📁 Location: {os.path.abspath('.env')}")
     
-    print("\n🔧 MANUAL UPDATES:")
-    print("1. Update FIREBASE_DATABASE_URL with your Firebase URL")
-    print("2. Ensure firebase-credentials.json exists")
+    # Display important info
+    print("\n📋 IMPORTANT INFORMATION:")
+    print(f"   API Key: {api_key}")
+    print(f"   Local URL: http://localhost:5000")
+    print(f"   Health Check: http://localhost:5000/health")
+    print(f"   Main Endpoint: POST http://localhost:5000/api/honeypot")
     
-    print("\n🚀 LOCAL TEST:")
-    print("   pip install -r requirements.txt")
-    print("   python app.py")
-    print("   python test_local.py")
+    print("\n🔧 MANUAL UPDATES NEEDED:")
+    print("1. Update FIREBASE_DATABASE_URL in .env if not auto-filled")
+    print("2. Add firebase-credentials.json file (from Firebase Console)")
     
-    print("\n🌐 PYTHONANYWHERE DEPLOYMENT:")
-    print("1. Push to GitHub: git push origin main")
-    print("2. Create PythonAnywhere account")
-    print("3. Clone repo, install requirements, configure .env")
-    print("4. Set up Web App")
+    print("\n🚀 NEXT STEPS:")
+    print("1. Run: pip install -r requirements.txt")
+    print("2. Run: python model_downloader.py")
+    print("3. Run: python app.py")
+    print("4. Run: python test_local.py")
     
     print("=" * 60)
     return True
 
 if __name__ == "__main__":
-    create_env_file()
+    create_environment_file()

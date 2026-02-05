@@ -9,3 +9,4 @@ numpy==2.4.0
 urlextract
 phonenumbers
 gunicorn
+schedule

@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: agentic-honeypot
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python model_downloader.py
+    startCommand: gunicorn app:app
+    envVars:
+      - key: API_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS_FILE
+        value: firebase-credentials.json
+      - key: MODEL_PATH
+        value: models/downloaded_model
+      - key: SCAM_THRESHOLD
+        value: 0.65
+      - key: GUVI_CALLBACK_URL
+        value: https://hackathon.guvi.in/api/updateHoneyPotFinalResult
+      - key: GUVI_TIMEOUT
+        value: 10
+      - key: MAX_CONVERSATION_TURNS
+        value: 15
+    healthCheckPath: /health
+    autoDeploy: true
+  
+  - type: worker
+    name: keepalive-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python keepalive.py
+    envVars:
+      - key: RENDER_URL
+        fromService:
+          name: agentic-honeypot
+          type: web
+          property: url
+    autoDeploy: true
