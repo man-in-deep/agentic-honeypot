@@ -37,6 +37,5 @@ coverage.xml
 .pytest_cache/
 
 # Local test files
-
 test_endpoint.py
 test_guvi_format.py
