@@ -13,7 +13,7 @@ An AI-powered system that detects scam messages and extracts intelligence throug
 ✅ **Firebase Integration** - Session persistence and management  
 ✅ **GUVI Callback** - MANDATORY endpoint implementation for hackathon scoring  
 ✅ **Exact GUVI Format** - Returns response in required hackathon format  
-✅ **Python Anywhere Deployment** - One-click deployment configuration  
+✅ **Render Deployment** - One-click deployment configuration  
 ✅ **API Key Authentication** - Secure access control  
 ✅ **Health Monitoring** - `/health` endpoint for service monitoring  
 ✅ **Comprehensive Testing** - Separate test files for local and production  
@@ -27,7 +27,7 @@ agentic-honeypot/
 ├── firebase-credentials.json     (Firebase config - add manually)
 ├── requirements.txt
 ├── README.md                     (This file)
-├── Python Anywhere.                 (Python Anywhere deployment config)
+├── render.yaml                   (Render deployment config)
 ├── app.py                        (Main Flask API)
 ├── setup_env.py                  (Auto-setup .env file)
 ├── model_downloader.py           (Download Hugging Face model)
@@ -49,7 +49,7 @@ agentic-honeypot/
 ```
 
 **Separate Test Files (Create outside project):**
-- `test_Python Anywhere.py` - Test Python Anywhere deployment
+- `test_render.py` - Test Render deployment
 - `test_guvi_format.py` - Verify GUVI format compliance
 
 ## 🔧 Prerequisites
@@ -57,7 +57,7 @@ agentic-honeypot/
 - Python 3.8 or higher
 - Git installed
 - GitHub account
-- Python Anywhere account (for deployment)
+- Render account (for deployment)
 - Firebase account (optional, for session storage)
 
 ## 🚀 Quick Start (Local Development)
@@ -210,103 +210,41 @@ Content-Type: application/json
 curl http://localhost:5000/health
 ```
 
-### **Step 1: Python anywhere
-🌐 Step 1: Create PythonAnywhere Account
-Go to pythonanywhere.com
+## 🚀 Render Deployment
 
-Click "Pricing & signup" → "Create a Beginner account" (Free)
-
-Sign up with email/password
-
-Verify email
-
-💻 Step 2: Setup PythonAnywhere Environment
-In PythonAnywhere Dashboard:
-Go to Consoles → Bash
-
-Clone your GitHub repo:
-
-bash
-git clone https://github.com/man-in-deep/agentic-honeypot.git
-cd agentic-honeypot
-Install dependencies:
-
-bash
-pip3.10 install -r requirements.txt
-# OR
-python3.10 -m pip install -r requirements.txt
-Create .env file:
-
-bash
-nano .env
-Copy your local .env content and update:
-
-API_KEY: Generate new one: openssl rand -hex 16
-
-FIREBASE_DATABASE_URL: Your Firebase URL
-
-DEBUG: false
-
-PORT: Remove this line (not needed for PythonAnywhere)
-
-Upload firebase-credentials.json:
-
-bash
-# Go to Files tab
-# Upload firebase-credentials.json to /home/YOUR_USERNAME/agentic-honeypot/
-🌐 Step 3: Create Web App
-In PythonAnywhere Dashboard:
-Go to Web tab
-
-Click Add a new web app
-
-Choose Manual configuration
-
-Python version: Python 3.10
-
-Click Next
-
-Configure WSGI File:
-Click on WSGI configuration file link
-
-Delete everything and paste:
-
-python
-import sys
-import os
-
-# Add your project directory
-path = '/home/YOUR_USERNAME/agentic-honeypot'
-if path not in sys.path:
-    sys.path.append(path)
-
-# Import Flask app
-from app import app as application
-
-# Set environment variables
-os.environ['FIREBASE_CREDENTIALS_FILE'] = '/home/YOUR_USERNAME/agentic-honeypot/firebase-credentials.json'
-Save
-
-Configure Web App:
-Go back to Web tab
-
-Source code: /home/YOUR_USERNAME/agentic-honeypot
-
-Working directory: /home/YOUR_USERNAME/agentic-honeypot
-
-Add Static Files (Optional):
-URL: /static/
-
-Directory: /home/YOUR_USERNAME/agentic-honeypot/static
-
-🚀 Step 4: Deploy
-Go to Web tab
-
-Click Reload button
-
-Wait for green banner: "Reloading..."
-
-When done: "Your web app is now live at https://YOUR_USERNAME.pythonanywhere.com"**
+### **Step 1: Create render.yaml**
+```yaml
+# In project root, create render.yaml with this content:
+services:
+  - type: web
+    name: agentic-honeypot
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python model_downloader.py
+    startCommand: gunicorn app:app
+    envVars:
+      - key: API_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS_FILE
+        value: firebase-credentials.json
+      - key: MODEL_PATH
+        value: models/downloaded_model
+      - key: SCAM_THRESHOLD
+        value: 0.65
+      - key: GUVI_CALLBACK_URL
+        value: https://hackathon.guvi.in/api/updateHoneyPotFinalResult
+      - key: GUVI_TIMEOUT
+        value: 10
+      - key: MAX_CONVERSATION_TURNS
+        value: 15
+    healthCheckPath: /health
+    autoDeploy: true
+```
 
 ### **Step 2: Push to GitHub**
 ```bash
@@ -314,7 +252,7 @@ When done: "Your web app is now live at https://YOUR_USERNAME.pythonanywhere.com
 git add .
 
 # Commit
-git commit -m "Complete Agentic Honey-Pot with Python Anywhere deployment"
+git commit -m "Complete Agentic Honey-Pot with Render deployment"
 
 # Create GitHub repository first (on github.com)
 # Then connect and push
@@ -323,8 +261,8 @@ git branch -M main
 git push -u origin main
 ```
 
-### **Step 3: Deploy on Python Anywhere**
-1. Go to [Python Anywhere.com](https://Python Anywhere.com)
+### **Step 3: Deploy on Render**
+1. Go to [render.com](https://render.com)
 2. Sign up with GitHub
 3. Click "New +" → "Web Service"
 4. Connect your GitHub repository `agentic-honeypot`
@@ -354,17 +292,17 @@ git push -u origin main
 
 8. **Deploy**: Click "Create Web Service"
 9. Wait 3-5 minutes for deployment
-10. Get your URL: `https://agentic-honeypot.onPython Anywhere.com`
+10. Get your URL: `https://agentic-honeypot.onrender.com`
 
-### **Step 4: Test Python Anywhere Deployment**
+### **Step 4: Test Render Deployment**
 ```bash
 # Create SEPARATE test file outside project
 cd ~/Desktop
-touch test_Python Anywhere.py
+touch test_render.py
 
-# Copy test_Python Anywhere.py code from documentation
-# Update with your Python Anywhere URL and API Key
-python test_Python Anywhere.py
+# Copy test_render.py code from documentation
+# Update with your Render URL and API Key
+python test_render.py
 ```
 
 ## 🧪 Testing
@@ -378,30 +316,30 @@ python app.py
 python test_local.py
 ```
 
-### **Python Anywhere Testing**
-1. Create `test_Python Anywhere.py` outside project folder
-2. Update with your Python Anywhere URL and API Key
-3. Run: `python test_Python Anywhere.py`
+### **Render Testing**
+1. Create `test_render.py` outside project folder
+2. Update with your Render URL and API Key
+3. Run: `python test_render.py`
 
 ### **GUVI Format Verification**
 1. Create `test_guvi_format.py` outside project
-2. Update with your Python Anywhere URL and API Key
+2. Update with your Render URL and API Key
 3. Run: `python test_guvi_format.py`
 
 ### **GUVI Endpoint Tester**
 1. Go to GUVI Hackathon website
 2. Find "Agentic Honey-Pot – API Endpoint Tester"
 3. Enter:
-   - **x-api-key**: Your Python Anywhere API Key (starts with `rnd_`)
-   - **URL**: `https://agentic-honeypot.onPython Anywhere.com/api/honeypot`
+   - **x-api-key**: Your Render API Key (starts with `rnd_`)
+   - **URL**: `https://agentic-honeypot.onrender.com/api/honeypot`
 4. Click "Test Endpoint"
 
 ## 🏆 Hackathon Submission
 
 ### **Submission Form (GUVI Website)**
 ```
-Deployed URL: https://agentic-honeypot.onPython Anywhere.com
-API KEY: rnd_abc123def456... (from Python Anywhere dashboard)
+Deployed URL: https://agentic-honeypot.onrender.com
+API KEY: rnd_abc123def456... (from Render dashboard)
 ```
 
 ### **Evaluation Criteria Met**
@@ -428,8 +366,8 @@ wget https://huggingface.co/mrm8488/bert-tiny-finetuned-sms-spam-detection/resol
 - Still works for hackathon evaluation
 - Check `firebase-credentials.json` file format
 
-### **Issue 3: Python Anywhere Deployment Fails**
-1. Check build logs in Python Anywhere dashboard
+### **Issue 3: Render Deployment Fails**
+1. Check build logs in Render dashboard
 2. Common issues:
    - Missing `requirements.txt`
    - Model download timeout
@@ -441,7 +379,7 @@ wget https://huggingface.co/mrm8488/bert-tiny-finetuned-sms-spam-detection/resol
 - Missing `x-api-key` header
 - API Key not set in environment variables
 
-### **Issue 5: Slow Response Times (Python Anywhere Free Tier)**
+### **Issue 5: Slow Response Times (Render Free Tier)**
 - First request: 30-60 seconds (cold start)
 - Subsequent: 2-5 seconds
 - This is NORMAL for free tier
@@ -454,14 +392,14 @@ wget https://huggingface.co/mrm8488/bert-tiny-finetuned-sms-spam-detection/resol
 - **Generated by**: `python setup_env.py`
 - **Use for**: `http://localhost:5000`
 
-### **Python Anywhere Deployment**
-- **Location**: Python Anywhere dashboard → Environment
+### **Render Deployment**
+- **Location**: Render dashboard → Environment
 - **Key**: `rnd_abc123def456...` (starts with `rnd_`)
-- **Generated by**: Python Anywhere automatically
-- **Use for**: `https://agentic-honeypot.onPython Anywhere.com`
+- **Generated by**: Render automatically
+- **Use for**: `https://agentic-honeypot.onrender.com`
 
 ### **GUVI Submission**
-- **Submit ONLY**: Python Anywhere URL + Python Anywhere API Key
+- **Submit ONLY**: Render URL + Render API Key
 - **NEVER submit**: Local URL or local API Key
 
 ## 📞 Hackathon Support
@@ -478,7 +416,7 @@ https://hackathon.guvi.in
 [Brief description of the issue]
 
 ## Environment
-- Local/Python Anywhere: [ ]
+- Local/Render: [ ]
 - Python Version: [ ]
 - OS: [ ]
 
@@ -508,8 +446,8 @@ https://github.com/man-in-deep/agentic-honeypot/issues
 3. ✅ Model downloaded: `ls models/downloaded_model/`
 4. ✅ Firebase configured (or memory fallback)
 5. ✅ GitHub pushed: `git push origin main`
-6. ✅ Python Anywhere deployed: Service shows "Live"
-7. ✅ Python Anywhere tests pass: `python test_Python Anywhere.py`
+6. ✅ Render deployed: Service shows "Live"
+7. ✅ Render tests pass: `python test_render.py`
 8. ✅ GUVI format verified: `python test_guvi_format.py`
 9. ✅ GUVI endpoint tester shows success
 10. ✅ Output matches GUVI requirements
@@ -542,7 +480,7 @@ All rights reserved by the participant.
 
 - Hugging Face for the pre-trained model
 - Firebase for database services
-- Python Anywhere for deployment platform
+- Render for deployment platform
 - GUVI for organizing the hackathon
 
 ---
@@ -551,8 +489,8 @@ All rights reserved by the participant.
 
 1. **DO NOT** commit `.env` or `firebase-credentials.json` to Git
 2. **DO** test with GUVI endpoint tester before submission
-3. **DO** keep your Python Anywhere API Key secure
-4. **DO** submit only Python Anywhere URL (not localhost)
+3. **DO** keep your Render API Key secure
+4. **DO** submit only Render URL (not localhost)
 5. **DO** implement GUVI callback (it's MANDATORY for scoring)
 
 ## 🚀 Quick Deployment Summary
@@ -560,12 +498,141 @@ All rights reserved by the participant.
 ```bash
 # Complete deployment in 3 steps:
 1. git push origin main
-2. Deploy on Python Anywhere (5 minutes)
+2. Deploy on Render (5 minutes)
 3. Test and submit on GUVI
 ```
 
 **Submission Details:**
-- **Deployed URL**: `https://agentic-honeypot.onPython Anywhere.com`
-- **API KEY**: From Python Anywhere dashboard → Environment → API_KEY
+- **Deployed URL**: `https://agentic-honeypot.onrender.com`
+- **API KEY**: From Render dashboard → Environment → API_KEY
 
 **GOOD LUCK WITH THE HACKATHON!** 🏆
+```
+
+## 📁 Additional Files Needed
+
+### **test_render.py** (Create SEPARATELY outside project)
+```python
+#!/usr/bin/env python3
+"""
+test_render.py - Test Render deployment
+Create this file OUTSIDE project folder (e.g., on Desktop)
+"""
+
+import requests
+import json
+import time
+import sys
+
+def test_render_api():
+    RENDER_URL = "https://agentic-honeypot.onrender.com"  # UPDATE THIS
+    API_KEY = "rnd_xxxxxxxxxxxxxxxxxxxx"  # UPDATE THIS
+    
+    print("🧪 Testing Render Deployment...")
+    
+    headers = {
+        'x-api-key': API_KEY,
+        'Content-Type': 'application/json'
+    }
+    
+    # Test health
+    try:
+        response = requests.get(f"{RENDER_URL}/health", timeout=15)
+        print(f"✅ Health: {response.json().get('status')}")
+    except:
+        print("❌ Cannot connect to Render")
+        return
+    
+    # Test API
+    payload = {
+        "sessionId": f"test-{int(time.time())}",
+        "message": {
+            "sender": "scammer",
+            "text": "Your account will be blocked. Verify at http://test.com",
+            "timestamp": "2026-01-21T10:15:30Z"
+        },
+        "conversationHistory": [],
+        "metadata": {"channel": "SMS", "language": "English", "locale": "IN"}
+    }
+    
+    try:
+        response = requests.post(f"{RENDER_URL}/api/honeypot", headers=headers, json=payload, timeout=15)
+        result = response.json()
+        print(f"✅ API Response: {result.get('status')}")
+        print(f"📊 Scam Detected: {result.get('scamDetected')}")
+        print(f"🎯 Confidence: {result.get('confidence')}")
+        print(f"🤖 Reply: {result.get('reply')}")
+    except Exception as e:
+        print(f"❌ API Error: {e}")
+
+if __name__ == "__main__":
+    print("⚠️ Update RENDER_URL and API_KEY in code first!")
+    test_render_api()
+```
+
+### **test_guvi_format.py** (Create SEPARATELY outside project)
+```python
+#!/usr/bin/env python3
+"""
+test_guvi_format.py - Verify GUVI format compliance
+Create this file OUTSIDE project folder
+"""
+
+import requests
+import json
+import time
+
+def test_guvi_format():
+    RENDER_URL = "https://agentic-honeypot.onrender.com/api/honeypot"
+    API_KEY = "rnd_xxxxxxxxxxxxxxxx"
+    
+    headers = {
+        'x-api-key': API_KEY,
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        "sessionId": "guvi-test-" + str(int(time.time())),
+        "message": {
+            "sender": "scammer",
+            "text": "URGENT: Account suspension. Verify now.",
+            "timestamp": "2026-01-21T10:15:30Z"
+        },
+        "conversationHistory": [],
+        "metadata": {"channel": "SMS", "language": "English", "locale": "IN"}
+    }
+    
+    try:
+        response = requests.post(RENDER_URL, headers=headers, json=payload, timeout=15)
+        result = response.json()
+        
+        # Check required fields
+        required = ['status', 'reply', 'scamDetected', 'confidence', 'extractedIntelligence']
+        if all(field in result for field in required):
+            print("✅ ALL GUVI FIELDS PRESENT")
+            if result['status'] == 'success':
+                print("✅ Status: success")
+            if 0 <= result['confidence'] <= 1:
+                print("✅ Confidence in range")
+            print("🎉 READY FOR GUVI SUBMISSION!")
+        else:
+            print("❌ MISSING REQUIRED FIELDS")
+    except:
+        print("❌ Test failed")
+
+if __name__ == "__main__":
+    test_guvi_format()
+```
+
+## 🎯 Final Steps for Hackathon
+
+1. **Complete Local Testing**: `python test_local.py`
+2. **Deploy to Render**: Follow steps above
+3. **Test Render**: `python test_render.py`
+4. **Verify Format**: `python test_guvi_format.py`
+5. **Test with GUVI Tester**: On hackathon website
+6. **Submit**: Enter Render URL and API Key
+
+**Submission Deadline**: Before Feb 5, 2026, 11:59 PM
+
+**May the best honeypot win!** 🍯🤖
