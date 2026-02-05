@@ -14,6 +14,13 @@ ENV/
 firebase-credentials.json
 service-account.json
 
+# Model files (large, will download on Render)
+models/downloaded_model/
+
+# OS
+.DS_Store
+Thumbs.db
+
 # IDE
 .vscode/
 .idea/
@@ -29,6 +36,7 @@ test_output/
 coverage.xml
 .pytest_cache/
 
-# PythonAnywhere
-*.sqlite3
-.pythonanywhere/
+# Local test files
+
+test_endpoint.py
+test_guvi_format.py
