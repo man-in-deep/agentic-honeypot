@@ -1,6 +1,6 @@
 """
-guvi_callback.py - SAME AS BEFORE
-Sends final result to GUVI evaluation endpoint
+guvi_callback.py
+Sends final result to GUVI evaluation endpoint (MANDATORY)
 """
 
 import os
@@ -39,13 +39,16 @@ class GUVICallback:
                 "agentNotes": self._generate_agent_notes(session_data)
             }
             
-            print(f"   📦 Payload prepared: scamDetected={payload['scamDetected']}")
+            print(f"   📦 Payload prepared")
             
             response = requests.post(
                 self.callback_url,
                 json=payload,
                 timeout=self.timeout,
-                headers={'Content-Type': 'application/json'}
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
             )
             
             if response.status_code == 200:
@@ -79,7 +82,7 @@ class GUVICallback:
         
         notes.append(f"Total messages: {session_data.get('messageCount', 0)}")
         
-        return ". ".join(notes) if notes else "No significant intelligence extracted."
+        return ". ".join(notes) if notes else "Engaged with scammer"
 
 # Global instance
 guvi_callback = GUVICallback()

@@ -1,5 +1,5 @@
 """
-firebase_manager.py - SAME AS BEFORE
+firebase_manager.py
 Manages session storage using Firebase Realtime Database
 """
 
@@ -16,11 +16,13 @@ class FirebaseManager:
         self.project_id = None
         self.database_url = None
         self.initialized = False
+        
         self._initialize_firebase()
     
     def _initialize_firebase(self):
         """Initialize Firebase connection"""
         try:
+            # Load Firebase credentials
             creds_file = os.getenv('FIREBASE_CREDENTIALS_FILE', 'firebase-credentials.json')
             
             if os.path.exists(creds_file):
@@ -28,10 +30,16 @@ class FirebaseManager:
                     credentials = json.load(f)
                 
                 self.project_id = credentials.get('project_id')
-                self.database_url = os.getenv('FIREBASE_DATABASE_URL', 
-                                            f'https://{self.project_id}.firebaseio.com')
+                
+                # Get database URL from env or construct
+                self.database_url = os.getenv('FIREBASE_DATABASE_URL')
+                if not self.database_url:
+                    # Construct default URL
+                    self.database_url = f"https://{self.project_id}.firebaseio.com"
+                
                 self.initialized = True
                 print(f"✅ Firebase initialized: {self.project_id}")
+                print(f"   Database URL: {self.database_url}")
             else:
                 print("⚠️  Firebase credentials not found. Using memory storage.")
                 self.initialized = False
@@ -46,11 +54,20 @@ class FirebaseManager:
             return False
         
         try:
+            # Prepare Firebase URL
             url = f"{self.database_url}/sessions/{session_id}.json"
+            
+            # Add timestamp
             data['_updated'] = time.time()
             
+            # Make request
             response = requests.put(url, json=data, timeout=5)
-            return response.status_code in [200, 204]
+            
+            if response.status_code in [200, 204]:
+                return True
+            else:
+                print(f"⚠️  Firebase save failed: {response.status_code}")
+                return False
                 
         except Exception as e:
             print(f"❌ Firebase save error: {e}")
@@ -87,20 +104,40 @@ class SessionManager:
     @staticmethod
     def save(session_id: str, data: Dict) -> bool:
         """Save session with Firebase fallback to memory"""
+        # Try Firebase first
         if firebase_manager.initialized:
             success = firebase_manager.save_session(session_id, data)
             if success:
                 return True
         
+        # Fallback to memory
         memory_sessions[session_id] = data
         return True
     
     @staticmethod
     def load(session_id: str) -> Optional[Dict]:
         """Load session from Firebase or memory"""
+        # Try Firebase first
         if firebase_manager.initialized:
             session = firebase_manager.load_session(session_id)
             if session:
                 return session
         
+        # Fallback to memory
         return memory_sessions.get(session_id)
+    
+    @staticmethod
+    def delete(session_id: str) -> bool:
+        """Delete session"""
+        # Delete from both
+        if firebase_manager.initialized:
+            try:
+                url = f"{firebase_manager.database_url}/sessions/{session_id}.json"
+                requests.delete(url, timeout=5)
+            except:
+                pass
+        
+        if session_id in memory_sessions:
+            del memory_sessions[session_id]
+        
+        return True
