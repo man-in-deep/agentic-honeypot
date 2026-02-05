@@ -1,20 +1,23 @@
 """
-model_predictor.py - FIXED WORKING VERSION
-Simple binary classification for scam detection
+model_predictor.py
+Uses downloaded Hugging Face model + pattern matching
+Works offline with downloaded files
 """
 
 import os
 import json
+import re
 import torch
 import torch.nn as nn
-from typing import Dict
+import numpy as np
+from typing import Dict, List
 
 class SimpleTokenizer:
-    """Simple tokenizer for BERT"""
+    """Tokenizer using downloaded vocab.txt"""
     
-    def __init__(self, vocab_file: str):
+    def __init__(self, vocab_path: str):
         self.vocab = {}
-        with open(vocab_file, 'r', encoding='utf-8') as f:
+        with open(vocab_path, 'r', encoding='utf-8') as f:
             for idx, line in enumerate(f):
                 token = line.strip()
                 if token:
@@ -24,13 +27,16 @@ class SimpleTokenizer:
         self.cls_token_id = self.vocab.get('[CLS]', 101)
         self.sep_token_id = self.vocab.get('[SEP]', 102)
         self.pad_token_id = self.vocab.get('[PAD]', 0)
+        
+        print(f"✅ Tokenizer loaded: {len(self.vocab)} tokens")
     
     def encode(self, text: str, max_length: int = 128) -> Dict:
+        """Simple encoding for inference"""
         text = text.lower()
         tokens = []
         current = ""
         
-        # Simple tokenization
+        # Basic tokenization
         for char in text:
             if char.isalnum():
                 current += char
@@ -66,134 +72,194 @@ class SimpleTokenizer:
             'attention_mask': torch.tensor([attention_mask], dtype=torch.long)
         }
 
-class SimpleBERT(nn.Module):
-    """Simplified BERT model for binary classification"""
+class SimpleBertModel(nn.Module):
+    """Simple BERT model that works with downloaded weights"""
     
     def __init__(self, config_path: str):
         super().__init__()
         
-        # Load config
         with open(config_path, 'r') as f:
             config = json.load(f)
         
-        vocab_size = config.get("vocab_size", 30522)
-        hidden_size = config.get("hidden_size", 768)
+        self.vocab_size = config.get('vocab_size', 30522)
+        self.hidden_size = config.get('hidden_size', 768)
+        self.num_labels = config.get('num_labels', 2)
         
-        # Simple layers
-        self.embedding = nn.Embedding(vocab_size, hidden_size)
-        self.classifier = nn.Linear(hidden_size, 2)  # 2 classes: normal, scam
+        # Simple architecture
+        self.embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.classifier = nn.Linear(self.hidden_size, self.num_labels)
         
+        # Try to load weights
+        self._load_weights(config_path)
+    
+    def _load_weights(self, config_path: str):
+        """Load weights from pytorch_model.bin"""
+        try:
+            model_dir = os.path.dirname(config_path)
+            weights_path = os.path.join(model_dir, "pytorch_model.bin")
+            
+            if os.path.exists(weights_path):
+                state_dict = torch.load(weights_path, map_location='cpu')
+                
+                # Filter for embeddings and classifier
+                filtered_dict = {}
+                for key, value in state_dict.items():
+                    if 'embeddings' in key or 'classifier' in key:
+                        # Remove prefix if present
+                        new_key = key.replace('bert.', '').replace('classifier.', '')
+                        filtered_dict[new_key] = value
+                
+                # Load what we can
+                self.load_state_dict(filtered_dict, strict=False)
+                print("   ✅ Model weights loaded (partial)")
+            else:
+                print("   ⚠️  No weights found, using random")
+                
+        except Exception as e:
+            print(f"   ⚠️  Could not load weights: {e}")
+    
     def forward(self, input_ids, attention_mask=None):
-        # Get embeddings
-        embeddings = self.embedding(input_ids)
+        """Forward pass - simple implementation"""
+        embeddings = self.embeddings(input_ids)
         
-        # Apply attention mask if provided
         if attention_mask is not None:
             mask = attention_mask.unsqueeze(-1).float()
             embeddings = embeddings * mask
+            pooled = embeddings.sum(dim=1) / mask.sum(dim=1)
+        else:
+            pooled = embeddings.mean(dim=1)
         
-        # Mean pooling
-        pooled = embeddings.mean(dim=1)
-        
-        # Classification
         logits = self.classifier(pooled)
         return logits
 
 class ModelPredictor:
-    """Main scam detector - binary classification"""
+    """Main predictor: Uses model + pattern fallback"""
     
     def __init__(self, model_dir: str = "models/downloaded_model"):
         self.model_dir = model_dir
-        self.device = torch.device('cpu')  # Vercel uses CPU
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         print(f"🤖 Initializing ModelPredictor on {self.device}")
         
-        # Check model files
-        config_path = os.path.join(model_dir, "config.json")
+        # Check files
+        required = ["config.json", "vocab.txt"]
+        for file in required:
+            if not os.path.exists(os.path.join(model_dir, file)):
+                raise FileNotFoundError(f"Missing: {file}")
+        
+        # Initialize tokenizer
         vocab_path = os.path.join(model_dir, "vocab.txt")
-        weights_path = os.path.join(model_dir, "pytorch_model.bin")
-        
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Missing config.json in {model_dir}")
-        if not os.path.exists(vocab_path):
-            raise FileNotFoundError(f"Missing vocab.txt in {model_dir}")
-        if not os.path.exists(weights_path):
-            raise FileNotFoundError(f"Missing pytorch_model.bin in {model_dir}")
-        
-        # Load tokenizer
         self.tokenizer = SimpleTokenizer(vocab_path)
         
-        # Load model
-        self.model = SimpleBERT(config_path)
+        # Initialize model
+        config_path = os.path.join(model_dir, "config.json")
+        self.model = SimpleBertModel(config_path)
         self.model.to(self.device)
-        
-        # Load weights
-        try:
-            state_dict = torch.load(weights_path, map_location='cpu')
-            self.model.load_state_dict(state_dict, strict=False)
-            print("✅ Model weights loaded")
-        except Exception as e:
-            print(f"⚠️ Could not load weights: {e}")
-            print("⚠️ Using random initialization")
-        
         self.model.eval()
-        print("✅ ModelPredictor ready")
+        
+        # Scam patterns for fallback
+        self.scam_patterns = [
+            r'urgent', r'immediate', r'asap', r'now', r'today',
+            r'bank.*account', r'suspend', r'block', r'terminate',
+            r'verify.*account', r'secure.*account',
+            r'upi.*id', r'send.*money', r'payment', r'transfer',
+            r'won.*prize', r'lottery', r'reward', r'congratulation',
+            r'click.*link', r'http://', r'https://',
+            r'call.*\d{10}', r'\+\d{1,3}.*\d{10}',
+            r'dear customer', r'attention required'
+        ]
+        
+        print("✅ ModelPredictor ready (model + patterns)")
     
     def predict(self, text: str) -> Dict:
-        """Predict if text is scam - binary output"""
+        """
+        Predict using model first, fallback to patterns
+        Returns: {'is_scam': bool, 'label': str, 'confidence': float}
+        """
+        # Try model first
+        model_result = self._model_predict(text)
+        
+        # If model fails or low confidence, use patterns
+        if model_result.get('success', False) and model_result.get('confidence', 0) > 0.6:
+            return model_result
+        else:
+            return self._pattern_predict(text)
+    
+    def _model_predict(self, text: str) -> Dict:
+        """Use downloaded model for prediction"""
         try:
-            # Encode text
             encoded = self.tokenizer.encode(text)
             input_ids = encoded['input_ids'].to(self.device)
             attention_mask = encoded['attention_mask'].to(self.device)
             
-            # Inference
             with torch.no_grad():
                 outputs = self.model(input_ids, attention_mask)
-                prediction = torch.argmax(outputs, dim=-1).item()
+                probs = torch.softmax(outputs, dim=-1)
                 
-                # Binary classification
-                is_scam = (prediction == 1)
-                confidence = 0.9 if is_scam else 0.1
-                label = "scam" if is_scam else "normal"
+                pred_class = torch.argmax(probs, dim=-1).item()
+                confidence = probs[0][pred_class].item()
+            
+            # Binary classification: 0=normal, 1=scam
+            is_scam = (pred_class == 1)
             
             return {
                 "is_scam": bool(is_scam),
-                "label": label,
-                "confidence": confidence,
-                "predicted_class": prediction,
+                "label": "scam" if is_scam else "normal",
+                "confidence": float(confidence),
+                "method": "model",
                 "success": True
             }
             
         except Exception as e:
-            print(f"❌ Model error: {e}")
-            # Fallback pattern detection
-            return self._fallback_detection(text)
+            print(f"❌ Model prediction failed: {e}")
+            return {
+                "is_scam": False,
+                "label": "error",
+                "confidence": 0.0,
+                "method": "error",
+                "success": False,
+                "error": str(e)
+            }
     
-    def _fallback_detection(self, text: str) -> Dict:
-        """Fallback pattern-based detection"""
-        import re
+    def _pattern_predict(self, text: str) -> Dict:
+        """Pattern-based fallback detection"""
         text_lower = text.lower()
+        matches = 0
         
-        scam_keywords = [
-            'urgent', 'immediate', 'verify', 'suspend', 'block',
-            'bank account', 'upi', 'payment', 'transfer', 'money',
-            'won', 'prize', 'lottery', 'free', 'winner',
-            'click', 'link', 'http://', 'https://',
-            'dear customer', 'attention required'
-        ]
+        for pattern in self.scam_patterns:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                matches += 1
         
-        matches = sum(1 for keyword in scam_keywords if keyword in text_lower)
-        confidence = min(matches * 0.1, 0.9)
+        # Calculate confidence
+        confidence = min(matches * 0.2, 0.95)
         is_scam = confidence > 0.5
         
         return {
-            "is_scam": is_scam,
+            "is_scam": bool(is_scam),
             "label": "scam" if is_scam else "normal",
-            "confidence": confidence,
-            "success": False,
-            "fallback": True
+            "confidence": float(confidence),
+            "method": "pattern",
+            "success": True
         }
+    
+    def analyze_scam_type(self, text: str) -> str:
+        """Analyze scam type based on keywords"""
+        text_lower = text.lower()
+        
+        if 'bank' in text_lower and ('suspend' in text_lower or 'block' in text_lower):
+            return "bank_phishing"
+        elif 'upi' in text_lower or '@' in text_lower:
+            return "upi_fraud"
+        elif 'won' in text_lower or 'prize' in text_lower or 'lottery' in text_lower:
+            return "lottery_scam"
+        elif 'hack' in text_lower or 'virus' in text_lower:
+            return "tech_support"
+        elif 'free' in text_lower or 'gift' in text_lower:
+            return "prize_scam"
+        elif 'suspend' in text_lower or 'block' in text_lower:
+            return "account_suspension"
+        else:
+            return "unknown_scam"
 
 # Global instance
 model_predictor = ModelPredictor()
