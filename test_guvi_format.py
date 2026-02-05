@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
 """
-debug_guvi_tester.py
-Debug what GUVI tester might be sending
+test_guvi_format.py - Tests ALL GUVI formats
 """
 
 import requests
 import json
+import time
 
-def test_guvi_format():
-    """Test what format GUVI might be using"""
+def test_all_formats():
+    print("=" * 70)
+    print("🧪 TESTING ALL GUVI FORMATS")
+    print("=" * 70)
     
-    YOUR_URL = "https://agentic-honeypot-0p4k.onrender.com/api/honeypot"
-    YOUR_API_KEY = "a3da6ac1825ebe8a1dce3520e36657d2"
-    
-    print("Testing different request formats...")
-    print()
+    # Your endpoint
+    ENDPOINT = "https://agentic-honeypot.vercel.app/api/honeypot"
+    API_KEY = "your-vercel-api-key"
     
     headers = {
-        'x-api-key': YOUR_API_KEY,
+        'x-api-key': API_KEY,
         'Content-Type': 'application/json'
     }
     
-    # Test different possible formats GUVI might use
+    # ALL possible formats GUVI might send
     test_formats = [
         {
-            "name": "Format 1: Full format",
+            "name": "Full GUVI format (timestamp as string)",
             "payload": {
                 "sessionId": "guvi-test-123",
                 "message": {
                     "sender": "scammer",
-                    "text": "Your bank account will be blocked. Verify immediately.",
+                    "text": "Your bank account will be blocked today. Verify immediately.",
                     "timestamp": "2026-01-21T10:15:30Z"
                 },
                 "conversationHistory": [],
@@ -41,46 +41,70 @@ def test_guvi_format():
             }
         },
         {
-            "name": "Format 2: Simple format",
+            "name": "GUVI format (timestamp as number)",
             "payload": {
-                "text": "Your account needs verification. Click link now.",
-                "sessionId": "test-simple"
+                "sessionId": "guvi-test-456",
+                "message": {
+                    "sender": "scammer",
+                    "text": "Your account will be suspended.",
+                    "timestamp": 1769776085000
+                },
+                "conversationHistory": [],
+                "metadata": {
+                    "channel": "SMS",
+                    "language": "English",
+                    "locale": "IN"
+                }
             }
         },
         {
-            "name": "Format 3: Minimal format",
+            "name": "Minimal format",
             "payload": {
-                "message": "URGENT: Account suspension pending"
+                "sessionId": "test-789",
+                "message": {
+                    "text": "Verify your account now"
+                }
             }
         },
         {
-            "name": "Format 4: Empty object",
-            "payload": {}
+            "name": "Simple format",
+            "payload": {
+                "text": "Your account needs verification"
+            }
         }
     ]
     
     for test in test_formats:
         print(f"\n🔍 Testing: {test['name']}")
-        print(f"   Payload: {json.dumps(test['payload'])}")
         
         try:
             response = requests.post(
-                YOUR_URL,
+                ENDPOINT,
                 headers=headers,
                 json=test['payload'],
                 timeout=20
             )
             
             print(f"   Status: {response.status_code}")
-            print(f"   Response: {response.text[:150]}...")
             
             if response.status_code == 200:
+                result = response.json()
                 print(f"   ✅ Success!")
+                print(f"   Status field: {result.get('status')}")
+                print(f"   Reply: {result.get('reply', '')[:50]}...")
+                
+                if result.get('status') == 'success':
+                    print(f"   🎉 Will pass GUVI tester!")
+                else:
+                    print(f"   ⚠️  Status not 'success'")
+                    
             else:
-                print(f"   ❌ Failed")
+                print(f"   ❌ Failed: {response.text[:100]}")
                 
         except Exception as e:
             print(f"   ❌ Error: {e}")
+        
+        time.sleep(1)
 
 if __name__ == "__main__":
-    test_guvi_format()
+    test_all_formats()

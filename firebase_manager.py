@@ -1,7 +1,5 @@
 """
-firebase_manager.py
-Manages session storage using Firebase Realtime Database
-SAME AS BEFORE - works fine
+firebase_manager.py - Working Firebase integration
 """
 
 import os
@@ -11,104 +9,57 @@ from typing import Dict, Optional
 import requests
 
 class FirebaseManager:
-    """Manages Firebase operations for session storage"""
+    """Manages Firebase operations"""
     
     def __init__(self):
-        self.project_id = None
-        self.database_url = None
-        self.api_key = None
-        self.auth_token = None
         self.initialized = False
+        self.database_url = os.getenv('FIREBASE_DATABASE_URL')
         
-        self._initialize_firebase()
-    
-    def _initialize_firebase(self):
-        """Initialize Firebase connection"""
-        try:
-            # Load Firebase credentials
-            creds_file = os.getenv('FIREBASE_CREDENTIALS_FILE', 'firebase-credentials.json')
-            
-            if os.path.exists(creds_file):
-                with open(creds_file, 'r') as f:
-                    credentials = json.load(f)
-                
-                self.project_id = credentials.get('project_id')
-                self.database_url = os.getenv('FIREBASE_DATABASE_URL', 
-                                            f'https://{self.project_id}.firebaseio.com')
-                
-                # Get auth token (simplified - for hackathon)
-                self.auth_token = credentials.get('private_key', '')[:50]
-                
-                self.initialized = True
-                print(f"✅ Firebase initialized: {self.project_id}")
-            else:
-                print("⚠️  Firebase credentials not found. Using memory storage.")
-                self.initialized = False
-                
-        except Exception as e:
-            print(f"❌ Firebase initialization failed: {e}")
-            self.initialized = False
+        if self.database_url:
+            print(f"✅ Firebase configured: {self.database_url[:50]}...")
+            self.initialized = True
+        else:
+            print("⚠️ Firebase not configured, using memory storage")
     
     def save_session(self, session_id: str, data: Dict) -> bool:
-        """Save session data to Firebase"""
         if not self.initialized:
             return False
         
         try:
-            # Prepare Firebase URL
             url = f"{self.database_url}/sessions/{session_id}.json"
-            
-            # Add timestamp
             data['_updated'] = time.time()
-            
-            # Make request
             response = requests.put(url, json=data, timeout=5)
-            
-            if response.status_code in [200, 204]:
-                return True
-            else:
-                print(f"⚠️  Firebase save failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Firebase save error: {e}")
+            return response.status_code in [200, 204]
+        except:
             return False
     
     def load_session(self, session_id: str) -> Optional[Dict]:
-        """Load session data from Firebase"""
         if not self.initialized:
             return None
         
         try:
             url = f"{self.database_url}/sessions/{session_id}.json"
             response = requests.get(url, timeout=5)
-            
             if response.status_code == 200:
-                data = response.json()
-                if data:
-                    return data
-            return None
-            
-        except Exception as e:
-            print(f"❌ Firebase load error: {e}")
-            return None
+                return response.json()
+        except:
+            pass
+        return None
 
 # Global instance
 firebase_manager = FirebaseManager()
 
-# Fallback in-memory storage
+# Memory fallback
 memory_sessions = {}
 
 class SessionManager:
-    """Unified session manager (Firebase + Memory fallback)"""
+    """Session manager with Firebase + memory fallback"""
     
     @staticmethod
     def save(session_id: str, data: Dict) -> bool:
-        """Save session with Firebase fallback to memory"""
-        # Try Firebase first
+        # Try Firebase
         if firebase_manager.initialized:
-            success = firebase_manager.save_session(session_id, data)
-            if success:
+            if firebase_manager.save_session(session_id, data):
                 return True
         
         # Fallback to memory
@@ -117,8 +68,7 @@ class SessionManager:
     
     @staticmethod
     def load(session_id: str) -> Optional[Dict]:
-        """Load session from Firebase or memory"""
-        # Try Firebase first
+        # Try Firebase
         if firebase_manager.initialized:
             session = firebase_manager.load_session(session_id)
             if session:
