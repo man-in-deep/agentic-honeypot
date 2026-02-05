@@ -10,9 +10,13 @@ env/
 ENV/
 .venv/
 
-# Firebase
+# Firebase credentials (SECRET - DO NOT PUSH)
 firebase-credentials.json
 service-account.json
+
+# OS
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
@@ -29,6 +33,8 @@ test_output/
 coverage.xml
 .pytest_cache/
 
-# OS
-.DS_Store
-Thumbs.db
+# Vercel
+.vercel/
+
+#model downloder
+model_downloader.py
