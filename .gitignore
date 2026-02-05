@@ -14,13 +14,6 @@ ENV/
 firebase-credentials.json
 service-account.json
 
-# Model files
-models/downloaded_model/
-
-# OS
-.DS_Store
-Thumbs.db
-
 # IDE
 .vscode/
 .idea/
@@ -35,3 +28,7 @@ logs/
 test_output/
 coverage.xml
 .pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
